@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"io"
 	"log"
 	"../calculatorpb"
 )
@@ -19,9 +20,11 @@ func main()  {
 
 	c:= calculatorpb.NewCalculatorServiceClient(cc)
 
-	doSum(c)
+	//doSum(c)
+	doServerStreaming(c)
 }
 
+// sum for unary
 func doSum(c calculatorpb.CalculatorServiceClient)  {
 	fmt.Println("Starting to do a sum RPC")
 
@@ -36,4 +39,29 @@ func doSum(c calculatorpb.CalculatorServiceClient)  {
 	}
 
 	log.Printf("Response from server: %v", res.SumResult)
+}
+
+// factorial for server streaming
+func doServerStreaming(c calculatorpb.CalculatorServiceClient) {
+	fmt.Println("Starting to do a PrimeDecomposition server streaming RPC")
+
+	req := &calculatorpb.PrimeNumberDecompositionRequest{
+		Number: 12,
+	}
+
+	stream, err := c.PrimeNumberDecomposition(context.Background(), req)
+	if err != nil {
+		log.Fatalf("Error while calling PrimeDecomposition RPC: %v", err)
+	}
+
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Printf("Error while streaming PrimeDecomposition RPC: %v", err)
+		}
+		fmt.Println(res.PrimeFactor)
+	}
 }
