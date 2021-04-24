@@ -1,15 +1,15 @@
 package main
 
 import (
+	"../calculatorpb"
 	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"io"
 	"log"
-	"../calculatorpb"
 )
 
-func main()  {
+func main() {
 	fmt.Println("Client is running...")
 
 	cc, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
@@ -18,14 +18,15 @@ func main()  {
 	}
 	defer cc.Close()
 
-	c:= calculatorpb.NewCalculatorServiceClient(cc)
+	c := calculatorpb.NewCalculatorServiceClient(cc)
 
 	//doSum(c)
-	doServerStreaming(c)
+	//doServerStreaming(c)
+	doClientStreaming(c)
 }
 
 // sum for unary
-func doSum(c calculatorpb.CalculatorServiceClient)  {
+func doSum(c calculatorpb.CalculatorServiceClient) {
 	fmt.Println("Starting to do a sum RPC")
 
 	req := &calculatorpb.SumRequest{
@@ -64,4 +65,34 @@ func doServerStreaming(c calculatorpb.CalculatorServiceClient) {
 		}
 		fmt.Println(res.PrimeFactor)
 	}
+}
+
+//compute average for client streaming
+func doClientStreaming(c calculatorpb.CalculatorServiceClient) {
+	fmt.Println("Starting to do a ComputeAverage client streaming RPC")
+
+	stream, err := c.ComputeAverage(context.Background())
+
+	if err != nil {
+		log.Fatalf("Error while calling stream RPC: %v", err)
+	}
+
+	numbers := []int32{2, 5, 7, 9, 12, 57}
+
+	for _, number := range numbers {
+		fmt.Printf("Sending number: %v\n", number)
+		err := stream.Send(&calculatorpb.ComputeAverageRequest{
+			Number:number,
+		})
+		if err != nil {
+			log.Fatalf("Error while sending stream: %v", err)
+		}
+	}
+
+	res, err := stream.CloseAndRecv()
+	if err != nil {
+		log.Fatalf("Error while receiving response: %v", err)
+	}
+
+	fmt.Printf("The average is: %v\n", res.GetAverage())
 }
